@@ -471,7 +471,11 @@ listEl.addEventListener('pointerup', (e) => {
   if (next !== tab) setTab(next);
 });
 listEl.addEventListener('pointercancel', () => { swipe = null; });
-listEl.addEventListener('lostpointercapture', () => { swipe = null; });
+listEl.addEventListener('lostpointercapture', (e) => {
+  // Touch initially captures the child under the finger. Moving capture to the
+  // list emits a bubbling loss event from that child; the swipe is still active.
+  if (e.target === listEl && swipe && e.pointerId === swipe.id) swipe = null;
+});
 listEl.addEventListener('click', (e) => {
   if (Date.now() < suppressClickUntil) {
     e.preventDefault();

@@ -24,7 +24,8 @@ function setup(initial = 'links') {
   function fire(name, x, y, extra = {}) {
     const event = {
       pointerId: 1, isPrimary: true, pointerType: 'touch',
-      clientX: x, clientY: y, target: { closest: () => false },
+      clientX: x, clientY: y,
+      target: name === 'lostpointercapture' ? context.listEl : { closest: () => false },
       preventDefault() { state.prevented = true; },
       stopImmediatePropagation() { state.blocked = true; },
       ...extra,
@@ -78,10 +79,20 @@ test('cancelled and multi-touch gestures do not switch tabs', () => {
     const app = setup();
     app.fire('pointerdown', 250, 100);
     app.fire('pointermove', 80, 100);
-    app.fire(cancel, 80, 100, { isPrimary: false, pointerId: 2 });
+    app.fire(cancel, 80, 100, { isPrimary: false, pointerId: cancel === 'pointerdown' ? 2 : 1 });
     app.fire('pointerup', 80, 100);
     assert.equal(app.state.tab, 'links');
   }
+});
+
+test('capture transferred from a child does not cancel the swipe', () => {
+  const app = setup();
+  app.fire('pointerdown', 250, 100);
+  app.fire('pointermove', 220, 100);
+  app.fire('lostpointercapture', 220, 100, { target: {} });
+  app.fire('pointermove', 80, 100);
+  app.fire('pointerup', 80, 100);
+  assert.equal(app.state.tab, 'todos');
 });
 
 test('vertical scroll direction stays locked and outer swipes do not wrap', () => {
