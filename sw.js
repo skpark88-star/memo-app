@@ -1,5 +1,5 @@
 // Network-first for the app shell so updates show up immediately; falls back to cache offline.
-const CACHE = 'memo-app-v1';
+const CACHE = 'memo-app-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
