@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
     const page = await context.newPage();
     await page.goto(process.env.TEST_URL || `http://127.0.0.1:${server.address().port}`);
     await page.evaluate(() => {
-      localStorage.setItem('memo_app_links', JSON.stringify(['https://example.com']));
+      localStorage.setItem('memo_app_links', JSON.stringify(['https://example.com/path?q=memo#section']));
       localStorage.setItem('memo_app_todos', JSON.stringify(
         Array.from({ length: 25 }, (_, i) => ({ text: `Task ${i + 1}`, done: false }))));
       localStorage.setItem('memo_app_tab', 'links');
@@ -50,6 +50,31 @@ const assert = require('node:assert/strict');
     await page.waitForTimeout(600);
     await page.locator('.link-text').tap();
     await page.waitForFunction(() => document.querySelector('.toast').textContent === '링크 복사됨');
+    const savedLink = 'https://example.com/path?q=memo#section';
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), savedLink);
+    await page.evaluate(() => navigator.clipboard.writeText('before-copy'));
+    await page.locator('.copy-btn').tap();
+    await page.waitForFunction(async expected => (await navigator.clipboard.readText()) === expected, savedLink);
+    await context.route('https://example.com/**', route => route.fulfill({
+      contentType: 'text/html', body: '<title>Opened link</title>',
+    }));
+    await page.evaluate(() => navigator.clipboard.writeText('keep-on-open'));
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('.open-btn').tap();
+    const popup = await popupPromise;
+    await popup.waitForLoadState();
+    assert.equal(popup.url(), savedLink, 'Open must preserve path, query and fragment');
+    assert.equal(await popup.evaluate(() => window.opener), null);
+    await popup.close();
+    await page.bringToFront();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'keep-on-open');
+    assert.equal(await page.locator('.link-item').count(), 1, 'Opening must not delete link');
+    for (const invalid of ['javascript:alert(1)', 'not a url']) {
+      await page.evaluate(value => { links = [value]; render(); }, invalid);
+      await page.locator('.open-btn').tap();
+      assert.equal(await page.locator('.toast').textContent(), '올바른 웹 주소인지 확인해주세요');
+      assert.equal(context.pages().length, 1);
+    }
     await page.locator('[data-tab="todos"]').tap();
     await swipe('.todo-text', 0, 200);
     assert.equal(await active(), 'todos', 'Vertical swipe must not switch tabs');
@@ -61,7 +86,7 @@ const assert = require('node:assert/strict');
     await page.locator('[data-tab="links"]').tap();
     await swipe('.empty-hint', -120);
     assert.equal(await active(), 'todos', 'Empty list must support swiping');
-    console.log('PASS: real browser touch swipes on links, todos and empty list; tap-to-copy; vertical gesture; reordering');
+    console.log('PASS: touch swipes; copy button and tap; open exact URL without copying; invalid URLs; vertical gesture; reordering');
   } finally {
     if (browser) await browser.close();
     server.close();

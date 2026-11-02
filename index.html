@@ -130,6 +130,18 @@
     color: var(--muted);
     margin-top: 3px;
   }
+  .link-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .link-actions button {
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+  .link-actions .open-btn { color: var(--accent); }
 
   /* Todos */
   .todo-item { align-items: flex-start; position: relative; }
@@ -303,10 +315,22 @@ function renderLinks() {
       <div class="link-body">
         <div class="link-text">${escapeHtml(link)}</div>
         <div class="link-hint">탭하면 복사</div>
+        <div class="link-actions">
+          <button type="button" class="copy-btn">복사</button>
+          <button type="button" class="open-btn">열기 ↗</button>
+        </div>
       </div>
       <button class="del-btn" aria-label="삭제">×</button>
     `;
     item.addEventListener('click', () => copyLink(link, item));
+    item.querySelector('.copy-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyLink(link, item);
+    });
+    item.querySelector('.open-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openLink(link);
+    });
     item.querySelector('.del-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       links.splice(idx, 1);
@@ -315,6 +339,16 @@ function renderLinks() {
     });
     listEl.appendChild(item);
   });
+}
+
+function openLink(link) {
+  try {
+    const url = new URL(link.trim());
+    if (!['https:', 'http:'].includes(url.protocol)) throw new Error('Invalid URL');
+    window.open(url.href, '_blank', 'noopener,noreferrer');
+  } catch {
+    showToast('올바른 웹 주소인지 확인해주세요', true);
+  }
 }
 
 function fallbackCopy(text) {
